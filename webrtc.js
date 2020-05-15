@@ -9,13 +9,13 @@
 
 var WebRTC = {}; 
 function log(msg){
-	console.log(msg);
-	//console.re.log(msg);
+	//console.log(msg);
+//	console.re.log(msg);
 }
 function errorlog(msg, url=false, lineNumber=false){
 
 	console.error(msg);
-	//console.re.error(msg);
+//	console.re.error(msg);
 	if (lineNumber){
 	//	console.re.error(lineNumber);
 		console.error(lineNumber);
@@ -76,6 +76,7 @@ WebRTC.Media = (function(){
 	session.director = false;
 	session.enc = new TextEncoder("utf-8");
 	session.framerate = false;
+	session.focusDistance = false;
 	session.height=false;
 	session.infocus = false;
 	session.keys = {}; // security signing stuff
@@ -100,6 +101,7 @@ WebRTC.Media = (function(){
 	session.view = false;
 	session.volume = 100; // state of volume.
 	session.width=false;
+	session.zoom=false;
 
 	//this._peerConnection.getReceivers().forEach(element => element.playoutDelayHint = 0.05);
 	
@@ -217,9 +219,21 @@ WebRTC.Media = (function(){
 		}
 	};
 	
+	session.remoteControl = function(event){
+		event.preventDefault();
+		var scale = parseFloat(event.deltaY * -0.001);
+		log(event.currentTarget);
+		
+		if ((event.ctrlKey)||(e.metaKey)){  // focus
+			session.requestFocusChange(scale, event.currentTarget.dataset.UUID);
+		} else { // zoom
+			session.requestZoomChange(scale, event.currentTarget.dataset.UUID);
+		}
+	};
+	
 	session.requestZoomChange = function(zoom, UUID, passwd = session.remote){
 		log("request zoom change: "+zoom);
-		
+		log(UUID);
 		var msg = {};
 		msg.zoom = zoom;
 		msg.remote = passwd;
@@ -306,6 +320,7 @@ WebRTC.Media = (function(){
 		}
 	}
 	
+	
 	function extractSdp(sdpLine, pattern) {
 		var result = sdpLine.match(pattern);
 		return (result && result.length == 2)? result[1]: null;
@@ -325,10 +340,6 @@ WebRTC.Media = (function(){
 			min: bandwidth.video,
 			max: bandwidth.video
 		});
-		//sdp = BandwidthHandler.setOpusAttributes(sdp);
-		
-		//sdp = sdp.replace(/a=mid:(.*)\r\n/g, 'a=mid:$1\r\nb=AS:' + bandwidth + '\r\n');   // vp9? 
-		
 		return sdp;
 	}
 
@@ -983,13 +994,50 @@ WebRTC.Media = (function(){
 
 	session.remoteZoom = function(zoom){
 		try {
-		var track0 = session.streamSrc.getVideoTracks();
-		var capabilities = track0.getCapabilities();
-		//var settings = track0.getSettings();
-		zoom = zoom*( capabilities.zoom.max - capabilities.zoom.min) + capabilities.zoom.min;
-		track0.applyConstraints({advanced: [ {zoom: zoom} ]});
+			var track0 = session.streamSrc.getVideoTracks();
+			track0 = track0[0];
+			var capabilities = track0.getCapabilities();
+			//var settings = track0.getSettings();
+			
+			if (session.zoom==false){
+				session.zoom = capabilities.zoom.min;
+			}
+			
+			session.zoom+=zoom;
+			if (session.zoom>capabilities.zoom.max){
+				session.zoom = capabilities.zoom.max;
+			} else if (session.zoom<capabilities.zoom.min){
+				session.zoom = capabilities.zoom.min;
+			}
+			
+			track0.applyConstraints({advanced: [ {zoom: session.zoom} ]});
 		} catch(e){
-			logerror(e);
+			errorlog(e);
+		}
+	};
+	
+	
+	session.remoteFocus = function(focusDistance){
+		try {
+			var track0 = session.streamSrc.getVideoTracks();
+			track0 = track0[0];
+			var capabilities = track0.getCapabilities();
+			//var settings = track0.getSettings();
+			
+			if (session.focusDistance==false){
+				session.focusDistance = capabilities.focusDistance.min;
+			}
+			
+			session.focusDistance+=focusDistance;
+			if (session.focusDistance>capabilities.focusDistance.max){
+				session.focusDistance = capabilities.focusDistance.max;
+			} else if (session.focusDistance<capabilities.focusDistance.min){
+				session.focusDistance = capabilities.focusDistance.min;
+			}
+			
+			track0.applyConstraints({advanced: [ {focusMode: "manual", focusDistance: session.focusDistance} ]});
+		} catch(e){
+			errorlog(e);
 		}
 	};
 
@@ -1028,6 +1076,17 @@ WebRTC.Media = (function(){
 					if ("remote" in msg){
 						if (msg.remote === session.remote){ // authorized
 							session.remoteZoom(parseFloat(msg.zoom));
+						}
+					} else { // no password provided by remote
+						return;
+					}
+				}
+			}
+			if ("focus" in msg){
+				if (session.remote){
+					if ("remote" in msg){
+						if (msg.remote === session.remote){ // authorized
+							session.remoteFocus(parseFloat(msg.focus));
 						}
 					} else { // no password provided by remote
 						return;
@@ -1213,6 +1272,7 @@ WebRTC.Media = (function(){
 		session.rpcs[UUID].videoElement=false;
 		session.rpcs[UUID].director=false;
 		session.rpcs[UUID].publisher=false;
+		session.rpcs[UUID].stats = false;
 		//session.rpcs[UUID].volume=1;
 		//session.rpcs[UUID].muted=false;
 		
@@ -1414,17 +1474,64 @@ WebRTC.Media = (function(){
 			};
 		};
 
-		session.playoutdelay = function(UUID){
+		session.playoutdelay = function(UUID, sync=false){  // applies a delay to all videos
 			var buffer = session.buffer || 0;
-			
 			buffer = parseFloat(buffer)/1000;
-			log("playout delay"+buffer);
+			log("playout delay: "+buffer);
+			
+			if (sync){
+				session.rpcs[UUID].stats
+			}
+			
 			if (session.buffer){
-				
-				session.rpcs[UUID].getReceivers().forEach(function(element){
-					element.playoutDelayHint = buffer;
+				session.rpcs[UUID].getReceivers().forEach(function(receiver){
+					try {
+						if (receiver.track) {
+							var buf = buffer;
+							for (var tid in session.rpcs[UUID].stats){
+								//log("XXXXX  "+session.rpcs[UUID].stats[tid].id);
+								//log("XYYYYX  "+receiver.track.id);
+								if (session.rpcs[UUID].stats[tid].id && session.rpcs[UUID].stats[tid].id==receiver.track.id){
+									//log("SYNC IS WORKIGN!");
+									
+									var ddd = 0;
+									if (session.rpcs[UUID].stats[tid].sync_offset){
+										ddd = session.rpcs[UUID].stats[tid].sync_offset;
+									}
+									
+									buf = buf - session.rpcs[UUID].stats[tid].delay/1000 + ddd;
+									//log("new buf: "+buf);
+									if (buf<0){
+										buf = 0;
+										errorlog("Buffer is not large enough to stay in sync");
+									}
+									session.rpcs[UUID].stats[tid].sync_offset = buf;
+								}
+							}
+							receiver.playoutDelayHint = buf;
+						} 
+						//log(receiver);
+					} catch (e){errorlog(e);}
 				});	
 			}
+		};
+
+		
+
+		session.printStats = function(uid,ele){
+			//log();
+			ele.innerHTML="";
+			function printValues(obj) {
+				for (var key in obj) {
+					if (typeof obj[key] === "object") {
+						ele.innerHTML +="<br />";
+						printValues(obj[key]);   
+					} else {
+						ele.innerHTML +="<b>"+key+"</b>: "+obj[key]+"<br />";
+					}
+				}
+			}
+			printValues(session.rpcs[uid].stats);
 		};
 
 		session.rpcs[UUID].ontrack = event => {
@@ -1437,6 +1544,8 @@ WebRTC.Media = (function(){
 			session.rpcs[UUID].streamSrc = stream;
 
 			session.playoutdelay(UUID);
+			
+			// for (rpc in session.rpcs){session.rpcs[rpc].getStats().then(function(stats) {stats.forEach(stat=>{if (stat.id.includes("RTCIce")){console.log(stat)}})})};
 
 			if (session.rpcs[UUID].videoElement){
 				log("new track added to mediastream");
@@ -1447,6 +1556,7 @@ WebRTC.Media = (function(){
 				} 
 			} else {
 				log("video element is being created and media track added");
+				
 
 				var container = document.createElement("div");	
 				container.id = "container_"+UUID;
@@ -1510,6 +1620,47 @@ WebRTC.Media = (function(){
 					updateMixer(); 
 				}
 				
+				v.addEventListener('click', function(e) { // show stats of video if double clicked
+					log("click");
+					try {
+						if ((e.ctrlKey)||(e.metaKey)){
+							e.preventDefault();
+							var uid = e.currentTarget.dataset.UUID;
+							if ("stats" in session.rpcs[uid]){
+								log(session.rpcs[uid].stats);
+								var menu = document.createElement("div");
+								menu.style.left="100px";
+								menu.style.top="100px";
+								menu.style.width="300px";
+								menu.style.minHeight="200px";
+								menu.style.backgroundColor="white";
+								menu.style.position="absolute";
+								menu.style.zIndex="20";
+								//menu.id = "stats_"+e.currentTarget.dataset.UUID
+								document.getElementById('main').appendChild(menu);
+								menu.innerHTML = "";
+								
+								session.printStats(uid, menu);
+								menu.interval = setInterval(session.printStats,5000, uid, menu);
+								menu.addEventListener('click', function(e) { 
+									clearInterval(e.currentTarget.interval);
+									e.currentTarget.parentNode.removeChild(e.currentTarget);
+								});
+								
+							}
+							e.stopPropagation();
+							return false;
+						}
+					} catch(e){errorlog(e);}
+					
+					
+				});
+				
+				
+				if (session.remote){
+					v.addEventListener("wheel", session.remoteControl);
+				}
+				
 				if (v.controls == false){
 					v.addEventListener("click", function() {
 						v.play().then(_ => {
@@ -1529,6 +1680,72 @@ WebRTC.Media = (function(){
 						errorlog("didnt autoplay");
 					});
 				}
+				
+				setInterval(function(){
+					try {
+						session.rpcs[UUID].getStats().then(function(stats){
+							console.log("STTTTTTTTATS");
+							if (!session.rpcs[UUID].stats){
+								
+								session.rpcs[UUID].stats = {};
+								
+								stats.forEach(stat=>{
+									if ((stat.type=="track") && (stat.remoteSource==true)){
+										media = {};
+										media.jitter_delay = stat.jitterBufferDelay;
+										media.jitter_count = stat.jitterBufferEmittedCount;
+										media.id = stat.trackIdentifier;
+										media.delay = 0;
+										media.type = stat.kind;
+										session.rpcs[UUID].stats[stat.id] = media;
+									} 
+								});
+								return;
+							}
+							
+							stats.forEach(stat=>{
+								if ((stat.type=="track") && (stat.remoteSource==true)){
+									if (stat.id in session.rpcs[UUID].stats){
+										session.rpcs[UUID].stats[stat.id].delay = 1000*(stat.jitterBufferDelay - session.rpcs[UUID].stats[stat.id].jitter_delay)/(stat.jitterBufferEmittedCount - session.rpcs[UUID].stats[stat.id].jitter_count);
+										session.rpcs[UUID].stats[stat.id].jitter_delay = stat.jitterBufferDelay;
+										session.rpcs[UUID].stats[stat.id].jitter_count = stat.jitterBufferEmittedCount;
+										if ("frameWidth" in stat){
+											session.rpcs[UUID].stats[stat.id].width = stat.frameWidth;
+										}
+										if ("frameHeight" in stat){
+											session.rpcs[UUID].stats[stat.id].height = stat.frameHeight;
+										}
+										//log(stat);
+									} else {
+										media = {};
+										media.jitter_delay = stat.jitterBufferDelay;
+										media.jitter_count = stat.jitterBufferEmittedCount;
+										media.id = stat.trackIdentifier;
+										media.delay = 0;
+										media.type = stat.kind;
+										session.rpcs[UUID].stats[stat.id] = media;
+									}
+								} else if (stat.type=="remote-candidate"){
+									session.rpcs[UUID].stats["remote_peer"] = stat.candidateType;
+									
+								} else if (stat.type=="local-candidate"){
+									session.rpcs[UUID].stats["local_peer"] = stat.candidateType;
+									
+								} else if ((stat.type=="inbound-rtp") && ("trackId" in stat)){
+									session.rpcs[UUID].stats[stat.trackId] = session.rpcs[UUID].stats[stat.trackId] || {};
+									session.rpcs[UUID].stats[stat.trackId].last_bytes = session.rpcs[UUID].stats[stat.trackId].last_bytes || stat.bytesReceived;
+									session.rpcs[UUID].stats[stat.trackId].last_time = session.rpcs[UUID].stats[stat.trackId].last_time || stat.timestamp;
+									session.rpcs[UUID].stats[stat.trackId].bitrate_kbps =  8*(stat.bytesReceived - session.rpcs[UUID].stats[stat.trackId].last_bytes)/( stat.timestamp - session.rpcs[UUID].stats[stat.trackId].last_time);
+									session.rpcs[UUID].stats[stat.trackId].type = stat.mediaType;
+								}
+								
+							});
+							if (session.buffer){
+								session.playoutdelay(UUID, true)
+							}
+						});
+					} catch (e){errorlog(e);}
+				}, 5000);
 				
 			}
 		};

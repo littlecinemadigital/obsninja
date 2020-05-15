@@ -695,16 +695,16 @@ function requestAudioStream(){
 						const audioInputSelect = document.querySelector('select#audioSourceScreenshare');
 						audioInputSelect.remove(1);
 						audioInputSelect.removeAttribute("onchange");
-						var temp = {};
-						for (let i = 0; i !== deviceInfos.length; ++i) {
-							if (deviceInfos[i].kind === 'audioinput') {
-								if (deviceInfos[i].deviceId in temp){
-									deviceInfos[i] = null;
-								} else {
-									temp[deviceInfos[i].deviceId]=true;
-								}
-							}
-						}							
+						//var temp = {};
+						//for (let i = 0; i !== deviceInfos.length; ++i) {  // getting rid of duplicates. This is a bit useless; I need to revisit.
+						//	if (deviceInfos[i].kind === 'audioinput') {
+						//		if (deviceInfos[i].deviceId in temp){
+						//			deviceInfos[i] = null;
+						//		} else {
+						//			temp[deviceInfos[i].deviceId]=true;
+						//		}
+						//	}
+						//}							
 						
 						for (let i = 0; i !== deviceInfos.length; ++i) {
 								const deviceInfo = deviceInfos[i];
@@ -745,16 +745,16 @@ function gotDevices(deviceInfos) { // https://github.com/webrtc/samples/blob/gh-
 				select.removeChild(select.firstChild);
 			}
 		});
-		var temp = {};
-		for (let i = 0; i !== deviceInfos.length; ++i) {
-			if (deviceInfos[i].kind === 'audioinput') {
-				if (deviceInfos[i].deviceId in temp){
-					deviceInfos[i] = null;
-				} else {
-					temp[deviceInfos[i].deviceId]=true;
-				}
-			}
-		}
+		//var temp = {};
+		//for (let i = 0; i !== deviceInfos.length; ++i) {
+		//	if (deviceInfos[i].kind === 'audioinput') {
+		//		if (deviceInfos[i].deviceId in temp){
+		//			deviceInfos[i] = null;
+		//		} else {
+		//			temp[deviceInfos[i].deviceId]=true;
+		//		}
+		//	}
+		//}
 		var counter = 1;
 		for (let i = 0; i !== deviceInfos.length; ++i) {
 			const deviceInfo = deviceInfos[i];
@@ -2053,7 +2053,6 @@ function popupMessage(e, message="Copied to Clipboard"){  // right click menu
 
 	posx += 10;
 
-	var contextMenuActive = "context-menu--active";
 
 	var menu = document.querySelector("#messagePopup");
 	menu.innerHTML = "<center>"+message+"</center>";
@@ -2069,7 +2068,7 @@ function popupMessage(e, message="Copied to Clipboard"){  // right click menu
 
     if ( menuState !== 1 ) {
 		menuState = 1;
-		menu.classList.add( contextMenuActive );
+		menu.classList.add( "context-menu--active" );
 	}
 
     menuWidth = menu.offsetWidth + 4;
@@ -2093,8 +2092,9 @@ function popupMessage(e, message="Copied to Clipboard"){  // right click menu
 	function toggleMenuOff() {
 		if ( menuState !== 0 ) {
 		  menuState = 0;
-		  menu.classList.remove( contextMenuActive );
+		  menu.classList.remove( "context-menu--active" );
 		}
 	}
 	setTimeout(function(){toggleMenuOff();},1000);
 }
+
