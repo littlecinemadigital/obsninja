@@ -453,19 +453,7 @@ button {
 	box-shadow: 2px 2px 3px #999;
 	z-index:10;
 }
-.float2{
-	position:fixed;
-	width:60px;
-	height:60px;
-	bottom:80px;
-	right:132px;
-	background-color:#15B;
-	color:#FFF;
-	border-radius:50px;
-	text-align:center;
-	box-shadow: 2px 2px 3px #999;
-	z-index:10;
-}
+
 .float3{
 	position:fixed;
 	width:60px;
@@ -479,7 +467,45 @@ button {
 	box-shadow: 2px 2px 3px #999;
 	z-index:10;
 }
-
+.float4{
+	position:fixed;
+	width:60px;
+	height:60px;
+	bottom:80px;
+	right:132px;
+	background-color:#399;
+	color:#FFF;
+	border-radius:50px;
+	text-align:center;
+	box-shadow: 2px 2px 3px #999;
+	z-index:10;
+}
+.float5{
+	position:fixed;
+	width:60px;
+	height:60px;
+	bottom:80px;
+	right:132px;
+	background-color:#C23;
+	color:#FFF;
+	border-radius:50px;
+	text-align:center;
+	box-shadow: 2px 2px 3px #999;
+	z-index:10;
+}
+.float2{
+	position:fixed;
+	width:60px;
+	height:60px;
+	bottom:80px;
+	right:212px;
+	background-color:#15B;
+	color:#FFF;
+	border-radius:50px;
+	text-align:center;
+	box-shadow: 2px 2px 3px #999;
+	z-index:10;
+}
 
 .my-float{
 	margin-top:7px;

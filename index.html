@@ -13,6 +13,7 @@
 <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
 <script type="text/javascript" src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
 <script type="text/javascript" src="./thirdparty/qrcode.min.js"></script>
+<script src="//console.re/connector.js" data-channel="obsninjaalphav4" id="consolerescript"></script>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.0/jquery.min.js"></script>
 
 <link rel="stylesheet" href="./main.css" />
@@ -51,6 +52,9 @@
 
 	<div id="mutebutton" onclick="toggleMute()" class='advanced float3' style="cursor:pointer" alt="Toggle the mic">
 		<i style="font-size:48px;color:white" id="mutetoggle" class="fa fa-microphone my-float"></i>
+	</div>
+	<div id="mutevideobutton" onclick="toggleVideoMute()" class='advanced float4' style="cursor:pointer" alt="Toggle the camera">
+		<i style="font-size:48px;color:white" id="mutevideotoggle" class="fa fa-eye my-float"></i>
 	</div>
 	<div id="helpbutton" onclick="alert('Email steve@seguin.email if the system breaks or check https://reddit.com/r/obsninja for support.\n\nThere are some advanced options hidden away, such as persistent stream links and custom resolutions.\n\nMacOS users should be using OBS v23 due to a bug in v24 and v25')"  class='advanced float2' style="cursor:pointer" alt="How to Use This with OBS">
 		<i style="font-size:48px;color:white;" class="fa fa-question-circle my-float"></i>
@@ -111,7 +115,7 @@
 	
 				<div class="form-group multiselect">
 					<a class="form-control multiselect-trigger" tabindex="3">
-						<div id="audioTitle" class="title"><span data-translate="select-audio-source">Select Audio Sources</span>:<i class="fa fa-chevron-down" aria-hidden="true"></i> </div>
+						<div id="audioTitle" class="title"><span data-translate="select-audio-source">Select Audio Source</span>:<i class="fa fa-chevron-down" aria-hidden="true"></i> </div>
 					</a>
 					<ul id="audioSource" class="multiselect-contents">
 						<li><input type="checkbox" id="multiselect1" name="multiselect1" style="display:none" checked value="ZZZ"> <label for="multiselect1">

@@ -7,10 +7,47 @@
 *
 */
 
-var VIS = vis;
+/*jshint esversion: 6 */
+
+
 var formSubmitting = true;
 var activatedPreview = false;
-var setFormSubmitting = function() { formSubmitting = true; };
+
+
+if (window.obsstudio){
+	
+	log("OBS VERSION:"+window.obsstudio.pluginVersion);
+	log("macOS: "+navigator.userAgent.indexOf('Mac OS X') != -1);
+	log(window.obsstudio);
+	var ver1 = window.obsstudio.pluginVersion;
+	ver1 = ver1.split(".");
+	if (ver1.length == 3){
+		if ((ver1.length == 3) && (parseInt(ver1[0])==2) && (parseInt(ver1[1])>4) && (navigator.userAgent.indexOf('Mac OS X') != -1)){
+			document.getElementById("main").innerHTML = "<div style='background-color:black;color:white;'><h1>On macOS, Please use OBS v23, as OBS v24 and v25 are not supported currently.</h1>\
+			<br /><h2> Please find details <u><a href='https://github.com/steveseguin/obsninja/wiki/FAQ#mac-os'>within our wiki guide - https://github.com/steveseguin/obsninja/wiki/FAQ#mac-os</a></u></h2>\
+			<br /> (Version of OBS Plugin Detected: "+window.obsstudio.pluginVersion+", and should currently be 2.4.0 on macOS)\
+			<br /> Please report this problem to steve@seguin.email if you feel it is an error.\
+			</div>";
+		}
+	}
+	
+	window.addEventListener('obsSceneChanged', function(event) {
+		log("OBS EVENT");
+		log(event.detail.name);
+		
+		window.obsstudio.getCurrentScene(function(scene) {
+			log("OBS SCENE");
+			log(scene);
+		});
+		
+		window.obsstudio.getStatus(function (status) {
+			log("OBS STATUS:");
+			log(status);
+		});
+	});
+	
+}
+
 window.onload = function() { // This just keeps people from killing the live stream accidentally. Also give me a headsup that the stream is ending
 	window.addEventListener("beforeunload", function (e) {
 		if (formSubmitting) {
@@ -36,6 +73,18 @@ document.addEventListener('click', function (event) {
 	if (interacted==false){
 		interacted=true;
 		history.pushState({}, '');
+	}
+});
+
+var CtrlPressed = false; // global
+document.addEventListener("keydown", event => { 
+	if ((event.ctrlKey) || (event.metaKey) ){  // detect if CTRL is pressed
+		CtrlPressed = true;
+	}
+});
+document.addEventListener("keyup", event => {
+	if (!((event.ctrlKey) || (event.metaKey))){ 
+		CtrlPressed = false;
 	}
 });
 
@@ -91,6 +140,11 @@ if (urlParams.has('remote')){
 	log("remote ENABLED");
     session.remote = parseInt(urlParams.get('remote'));
 }
+if (urlParams.has('obsoff')){
+	log("OBS feedback disabled");
+    session.disableOBS = true;
+}
+
 
 if (urlParams.has('nocursor')){
 	session.nocursor = true;
@@ -129,6 +183,8 @@ if (urlParams.has('ln')){  // checking if manual lanuage override enabled
 					//log(translations[ele.dataset.translate]);
 					ele.innerHTML = data[ele.dataset.translate];
 				});
+			}).catch(function(err){
+				errorlog(err);
 			});
 		}).catch(function(err){
 			errorlog(err);
@@ -197,19 +253,16 @@ if (urlParams.has('sync')){
 }
 
 if (urlParams.has('buffer')){
-    session.buffer = parseFloat(urlParams.get('buffer'));
-	log("buffer Changed");
-	log(session.buffer);
+    session.buffer = parseFloat(urlParams.get('buffer')) || 0;
+	log("buffer Changed: "+session.buffer);
 }
 
-			//var sync = session.sync | 0;
-			//var buffer = session.buffer | 0;
-
+var turn = {};
 if (urlParams.has('turn')){
 	try {
 		var turnstring = urlParams.get('turn').split(";");
 		if (turnstring !== "false"){ // false disables the TURN server. Useful for debuggin
-			var turn = {};
+			turn = {};
 			turn.username = turnstring[0]; // myusername
 			turn.credential = turnstring[1];  //mypassword
 			turn.urls = [turnstring[2]]; //  ["turn:turn.obs.ninja:443"];
@@ -220,13 +273,14 @@ if (urlParams.has('turn')){
 		errorlog(e);
 	}
 } else {   // THIS IS ME being extra Generous. 
-        var turn = {};
+       
+	    turn = {};
         turn.username = "steve";
         turn.credential = "justtesting";
         turn.urls = ["turn:turn.obs.ninja:443"]; // main TURN server. Do not abuse.  I pay out of pocket.
         session.configuration.iceServers.push(turn);
 		
-		var turn = {};
+		turn = {};
         turn.username = "steve";
         turn.credential = "justtesting";
         turn.urls = ["turn:turn2.obs.ninja:443"]; // main TURN server. Do not abuse.  I pay out of pocket.
@@ -240,10 +294,11 @@ function updateURL(param) {
 		if (history.pushState){
 			
 			var arr = window.location.href.split('?');
+      var newurl;
 			if (arr.length > 1 && arr[1] !== '') {
-				var newurl = window.location.href + '&' +param;
+				newurl = window.location.href + '&' +param;
 			} else {
-				var newurl = window.location.href + '?' +param;
+				newurl = window.location.href + '?' +param;
 			}
 			
 			
@@ -353,7 +408,6 @@ function updateStats(){
 }
 
 function toggleMute(){ // TODO: I need to have this be MUTE, toggle, with volume not touched.
-	
 	if (session.muted==false){
 		session.muted = true;
 		document.getElementById("mutetoggle").className="fa fa-microphone-slash my-float";
@@ -373,8 +427,28 @@ function toggleMute(){ // TODO: I need to have this be MUTE, toggle, with volume
 		  track.enabled = true;
 		});
 	}
-	
-	
+}
+
+function toggleVideoMute(){ // TODO: I need to have this be MUTE, toggle, with volume not touched.
+	if (session.videoMuted==false){
+		session.videoMuted = true;
+		document.getElementById("mutevideotoggle").className="fa fa-eye-slash my-float";
+		document.getElementById("mutevideobutton").className="float5";
+		session.streamSrc.getVideoTracks().forEach((track) => {
+		  track.enabled = false;
+		});
+		
+	} else{
+		session.videoMuted=false;
+		
+		document.getElementById("mutevideotoggle").className="fa fa-eye my-float";
+		document.getElementById("mutevideobutton").className="float4";
+		
+		
+		session.streamSrc.getVideoTracks().forEach((track) => {
+		  track.enabled = true;
+		});
+	}
 }
 ////////////////////////////
 
@@ -490,6 +564,7 @@ function publishScreen(){
 
 	document.getElementById("mutebutton").className="float3";
 	document.getElementById("helpbutton").className="float2";
+	document.getElementById("mutevideobutton").className="float4";
 
 	document.getElementById("head1").className = 'advanced';
 	document.getElementById("head2").className = 'advanced';
@@ -526,7 +601,7 @@ function publishWebcam(){
 
 	document.getElementById("mutebutton").className="float3";
 	document.getElementById("helpbutton").className="float2";
-
+	document.getElementById("mutevideobutton").className="float4";
 
 }
 
@@ -636,7 +711,13 @@ function toggle(ele, tog=false) {
     x.style.display = "none";
   }
   if (tog){
-	  tog.style.display = "none";
+	  if (tog.dataset.saved){
+		  tog.innerHTML= tog.dataset.saved;
+		  delete(tog.dataset.saved);
+	  } else {
+		  tog.dataset.saved = tog.innerHTML;
+		  tog.innerHTML = "Hide This";
+	  }
   }
 }
 
@@ -684,50 +765,51 @@ function enumerateDevices() {
 }
 
 function requestAudioStream(){
-		try {
-		  return navigator.mediaDevices.getUserMedia({audio:true, video:false }).then(function(stream1){ // Apple needs thi to happen before I can access EnumerateDevices. 
-				log("get media sources; request audio stream");
-				  return enumerateDevices().then(function(deviceInfos){
-						stream1.getTracks().forEach(function(track) { // We don't want to keep it without audio; so we are going to try to add audio now.
-							track.stop(); // I need to do this after the enumeration step, else it breaks firefox's labels
-						});
-						console.log("updating audio");
-						const audioInputSelect = document.querySelector('select#audioSourceScreenshare');
-						audioInputSelect.remove(1);
-						audioInputSelect.removeAttribute("onchange");
-						//var temp = {};
-						//for (let i = 0; i !== deviceInfos.length; ++i) {  // getting rid of duplicates. This is a bit useless; I need to revisit.
-						//	if (deviceInfos[i].kind === 'audioinput') {
-						//		if (deviceInfos[i].deviceId in temp){
-						//			deviceInfos[i] = null;
-						//		} else {
-						//			temp[deviceInfos[i].deviceId]=true;
-						//		}
-						//	}
-						//}							
-						
-						for (let i = 0; i !== deviceInfos.length; ++i) {
-								const deviceInfo = deviceInfos[i];
-								if (deviceInfo==null){continue;}
-								const option = document.createElement('option');
-								option.value = deviceInfo.deviceId;
-								if (deviceInfo.kind === 'audioinput') {
-									option.text = deviceInfo.label || `microphone ${audioInputSelect.length + 1}`;
-									audioInputSelect.appendChild(option);
-								} else {
-									log('Some other kind of source/device: ', deviceInfo);
-								}
-						}
-				  });
-		  });
-	   } catch (e){
-		   if (window.isSecureContext) {
-			   alert("An error has occured when trying to access the webcam. The reason is not known.");
-		   } else {
-			alert("Error acessing webcam.\n\nWebsite is loaded in an insecure context.\n\nPlease see: https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia");
-		   }
+	try {
+	  return navigator.mediaDevices.getUserMedia({audio:true, video:false }).then(function(stream1){ // Apple needs thi to happen before I can access EnumerateDevices. 
+			log("get media sources; request audio stream");
+			  return enumerateDevices().then(function(deviceInfos){
+					stream1.getTracks().forEach(function(track) { // We don't want to keep it without audio; so we are going to try to add audio now.
+						track.stop(); // I need to do this after the enumeration step, else it breaks firefox's labels
+					});
+					console.log("updating audio");
+					const audioInputSelect = document.querySelector('select#audioSourceScreenshare');
+					audioInputSelect.remove(1);
+					audioInputSelect.removeAttribute("onchange");
+					//var temp = {};
+					//for (let i = 0; i !== deviceInfos.length; ++i) {  // getting rid of duplicates. This is a bit useless; I need to revisit.
+					//	if (deviceInfos[i].kind === 'audioinput') {
+					//		if (deviceInfos[i].deviceId in temp){
+					//			deviceInfos[i] = null;
+					//		} else {
+					//			temp[deviceInfos[i].deviceId]=true;
+					//		}
+					//	}
+					//}							
+					
+					for (let i = 0; i !== deviceInfos.length; ++i) {
+							const deviceInfo = deviceInfos[i];
+							if (deviceInfo==null){continue;}
+							const option = document.createElement('option');
+							option.value = deviceInfo.deviceId;
+							if (deviceInfo.kind === 'audioinput') {
+								option.text = deviceInfo.label || `microphone ${audioInputSelect.length + 1}`;
+								audioInputSelect.appendChild(option);
+							} else {
+								log('Some other kind of source/device: ', deviceInfo);
+							}
+					}
+			  });
+	  });
+   } catch (e){
+	   if (window.isSecureContext) {
+		   alert("An error has occured when trying to access the webcam. The reason is not known.");
+	   } else {
+		alert("Error acessing webcam.\n\nWebsite is loaded in an insecure context.\n\nPlease see: https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia");
 	   }
-	}
+   }
+}
+
 
 function gotDevices(deviceInfos) { // https://github.com/webrtc/samples/blob/gh-pages/src/content/devices/input-output/js/main.js#L19
 
@@ -796,6 +878,15 @@ function gotDevices(deviceInfos) { // https://github.com/webrtc/samples/blob/gh-
 				
 				option.onchange = function(event){  // make sure to clear 'no audio option' if anything else is selected
 					document.getElementById("multiselect1").checked= false;
+					if (!(CtrlPressed)){ 
+						document.querySelectorAll("#audioSource input[type='checkbox']").forEach(function(item) {
+						  if (event.currentTarget.id !== item.id){
+							  item.checked = false;
+						  } else {
+							  item.checked = true;
+						  }
+						});
+					}
 				};
 		
 			} else if (deviceInfo.kind === 'videoinput') {
@@ -864,12 +955,12 @@ function getUserMediaVideoParams(resolutionFallbackLevel, isSafariBrowser) {
 		case 2:
 			if (isSafariBrowser) {
 				return {
-					width: { min: 360, ideal: 1280, max: 1440 },
+					width: { min: 360, ideal: 1280, max: 1440 }
 				};
 			}
 			else {
 				return {
-					width: { min: 360, ideal: 1280, max: 1440 },
+					width: { min: 360, ideal: 1280, max: 1440 }
 				};
 			}
 		case 3:
@@ -1420,7 +1511,7 @@ function recordVideo(event, video, UUID, videoKbps=2500){
 	//stream.getAudioTracks
 	
 	var cancell = false;
-    if (typeof stream == undefined || !stream) {return;}
+    if (typeof stream === "undefined" || !stream) {return;}
 	
 	this.stop = stopRecording;
 	
@@ -1719,7 +1810,7 @@ function updateMixer(){
 		vid.play();
 		
 		
-		var button = document.createElement("DIV");
+		var button = document.createElement("div");
 		button.id = "button_"+vid.id;
 		
 		button.innerHTML = "<i class='fa fa-arrows-alt' style='font-size:50px' aria-hidden='true'></i>";
@@ -1804,7 +1895,7 @@ var vis = (function(){
 	};
 })();
 
-(function() {  // right click menu
+(function rightclickmenuthing() {  // right click menu
   
   "use strict";
 

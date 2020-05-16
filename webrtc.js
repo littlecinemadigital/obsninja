@@ -6,19 +6,19 @@
 *  tree. Alternative licencing options can be made available on request.
 *
 */
-
+/*jshint esversion: 6 */
 var WebRTC = {}; 
 function log(msg){
 	//console.log(msg);
-//	console.re.log(msg);
+	//console.re.log(msg);
 }
 function errorlog(msg, url=false, lineNumber=false){
 
-	console.error(msg);
-//	console.re.error(msg);
+	//console.error(msg);
+	//console.re.error(msg);
 	if (lineNumber){
 	//	console.re.error(lineNumber);
-		console.error(lineNumber);
+	//	console.error(lineNumber);
 	}
 }
 function isAlphaNumeric(str) {
@@ -41,9 +41,9 @@ window.onerror = function backupErr(errorMsg, url, lineNumber) {
 	return false;
 };
 
-WebRTC.Media = (function(){
+WebRTC.Media = (function webrtcmediamain(){
 	var session = {};
-
+	
 	function onSuccess(){}
 	function onError(err){errorlog(err);}
 	function defer(){
@@ -67,6 +67,7 @@ WebRTC.Media = (function(){
 	//turn.credential = "justtesting";
 	//turn.urls = ["turn:turn.obs.ninja:443"];
 	//session.configuration.iceServers.push(turn);
+	var AudioContext = window.AudioContext || window.webkitAudioContext;
 	log(session.configuration);
     
 	session.bitrate = false; // 20000;
@@ -85,6 +86,7 @@ WebRTC.Media = (function(){
 	session.muted = false;
 	session.mykey = {};
 	session.nocursor = false;
+	session.disableOBS = false;
 	session.pcs = {};
 	session.remote = false;
 	session.roomid = false;
@@ -98,6 +100,7 @@ WebRTC.Media = (function(){
 	session.streamSrc = null; // location of this computer's stream, if there is one
 	session.sync = false;
 	session.videoElement = false;
+	session.videoMuted = false;
 	session.view = false;
 	session.volume = 100; // state of volume.
 	session.width=false;
@@ -105,7 +108,7 @@ WebRTC.Media = (function(){
 
 	//this._peerConnection.getReceivers().forEach(element => element.playoutDelayHint = 0.05);
 	
-	session.generateStreamID = function(){
+	session.generateStreamID = function generatestreamidfunc(){
 		var text = "";
 		var possible = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
 		for (var i = 0; i < 7; i++){
@@ -126,7 +129,7 @@ WebRTC.Media = (function(){
 		}
 	};
 
-	session.generateCrypto = function(){
+	session.generateCrypto = function generatecryptofunc(){
 		window.crypto.subtle.generateKey({
 			name: "RSASSA-PKCS1-v1_5",
 			modulusLength: 512, //can be 1024, 2048, or 4096 -- also apparently 512!
@@ -214,7 +217,7 @@ WebRTC.Media = (function(){
 		if (session.sendRequest(msg,UUID)){
 			session.rpcs[UUID].bandwidth=bandwidth;
 		} else {
-			setTimeout(function(){session.requestRateLimit(false, UUID);},5000); // just try re-setting it if it didn't work
+			setTimeout(function setratelimitfunc(){session.requestRateLimit(false, UUID);},5000); // just try re-setting it if it didn't work
 			errorlog("couldn't set rate limit");
 		}
 	};
@@ -224,7 +227,7 @@ WebRTC.Media = (function(){
 		var scale = parseFloat(event.deltaY * -0.001);
 		log(event.currentTarget);
 		
-		if ((event.ctrlKey)||(e.metaKey)){  // focus
+		if ((event.ctrlKey)||(event.metaKey)){  // focus
 			session.requestFocusChange(scale, event.currentTarget.dataset.UUID);
 		} else { // zoom
 			session.requestZoomChange(scale, event.currentTarget.dataset.UUID);
@@ -272,7 +275,6 @@ WebRTC.Media = (function(){
 					
 					var sender = session.pcs[UUID].getSenders().find(function(s) {return s.track.kind == "video";});
 					
-					log(sender);
 					if (!sender){
 						errorlog("can't change bitrate; no video sender found");
 						return;
@@ -282,9 +284,7 @@ WebRTC.Media = (function(){
 					if (!parameters.encodings){
 						parameters.encodings = [{}];
 					}
-					log(parameters.encodings);
-					log("parameters");
-					if (bandwidth < 0) {
+					if (bandwidth < 0) { // if -1 , this implies unlock.
 						delete parameters.encodings[0].maxBitrate;
 					} else {
 						parameters.encodings[0].maxBitrate = bandwidth * 1000;
@@ -316,7 +316,7 @@ WebRTC.Media = (function(){
 				stream.getTracks().forEach(track => {
 					track.stop();
 				});
-			}).catch(function(){alert("Can't play out to specific audio device without mic permissions allowed");});
+			}).catch(function canplayspecificaudio(){alert("Can't play out to specific audio device without mic permissions allowed");});
 		}
 	}
 	
@@ -388,7 +388,7 @@ WebRTC.Media = (function(){
 		}
 	};
 
-	session.changeTitle = function(title){
+	session.changeTitle = function sessionchangetitle(title){
 		var data = {};
 		data.request = "changeTitle";
 		data.title = title;
@@ -396,7 +396,7 @@ WebRTC.Media = (function(){
 	};
 
 
-	session.watchStream = function(streamID){
+	session.watchStream = function sessionwatchstream(streamID){
 		//session.streamID = streamID; //  we won't remember what we asked for, but this keeps it simple 
 		var data = {};
 		data.request = "play";
@@ -404,13 +404,13 @@ WebRTC.Media = (function(){
 		session.sendMsg(data);
 	};
 
-	session.debug = function(){
+	session.debug = function sessiondebug(){
 		var data = {};
 		data.request = "debug123";
 		session.sendMsg(data);
 	};
 
-	session.joinRoom = function(roomid,maxbitrate){
+	session.joinRoom = function sessionjoinroom(roomid,maxbitrate){
 		var data = {};
 		data.request = "joinroom";
 		data.roomid = roomid;
@@ -425,11 +425,11 @@ WebRTC.Media = (function(){
 	session.retryTimer = null; 
 	session.ws=null;
 
-	session.connect = function(reconnect=false){
+	session.connect = function sessionconnect(reconnect=false){
 		if (session.ws != null){return;}
 		session.ws = new WebSocket("wss://api.obs.ninja:7443");
 
-		session.sendMsg = function(msg){
+		session.sendMsg = function sessionsendmsg(msg){
 			log("sending message");
 			if (session.ws.readyState !== 1){session.msg = msg;} // store the last message to be sent if websocket is not ready. 
 			else {
@@ -438,7 +438,7 @@ WebRTC.Media = (function(){
       }
 		};
 
-		session.ws.onopen = function(){
+		session.ws.onopen = function sessionwsopen(){
 			if (session.retryTimer!=null){
 				clearInterval(session.retryTimer);
 				session.retryTimer=null;
@@ -474,7 +474,7 @@ WebRTC.Media = (function(){
 							//} else {
 							//  txt = "You pressed Cancel!";
 							//} 
-							setTimeout(function() {alert("Security mode is enabled, yet a second connection request was recieved. It may be valid, but we will deny it out of extreme caution."); }, 1);
+							setTimeout(function securitymodenabled() {alert("Security mode is enabled, yet a second connection request was recieved. It may be valid, but we will deny it out of extreme caution."); }, 1);
 							return;
 						}
 						
@@ -597,34 +597,20 @@ WebRTC.Media = (function(){
 					session.setupIncoming(msg); // could end up setting up the peer the wrong way.
 					session.connectPeer(msg);
 				} else {
-					session.pcs[msg.UUID].setRemoteDescription(msg.description).then(function(){
-						log("PCS SET SDP");
-						//try {
-						//	if (session.roomid){
-						//		session.limitBitrate(msg.UUID,40); // drop bitrate low.  May not be supported by iOS, which will need to fallback onto older methods?
-						//	} else if (session.director){
-						//		alert("test");
-						///		session.limitBitrate(msg.UUID,40); // drop bitrate low.  May not be supported by iOS, which will need to fallback onto older methods?
-						//	}
-						//} catch(e){
-						//	errorlog(e);
-						//}
-						
-					}).catch(onError);
-
+					session.pcs[msg.UUID].setRemoteDescription(msg.description).then().catch(onError);
 				}
 			} else if (msg.candidate){
 				log("GOT ICE!!");
 				if ((msg.UUID in session.pcs) && (msg.type=="remote")){
 					log("PCS WINS ICE");
-					session.pcs[msg.UUID].addIceCandidate(msg.candidate).then(function(){log("added ICE from viewer");}).catch(function(e){
+					session.pcs[msg.UUID].addIceCandidate(msg.candidate).then().catch(function(e){
 						//console.error("ICE ERROR");
 						errorlog(e);
 						errorlog(msg);
 					}); // NOT SURE ABOUT THIS
 				} else if ((msg.UUID in session.rpcs ) && (msg.type=="local")) {
 					log("RPCS WINS ICE");
-					session.rpcs[msg.UUID].addIceCandidate(msg.candidate).then(function(){log("added ICE from publisher");}).catch(function(e){
+					session.rpcs[msg.UUID].addIceCandidate(msg.candidate).then().catch(function(e){
 						//console.error("ICE ERROR");
 						errorlog(e);
 						errorlog(msg);
@@ -649,7 +635,7 @@ WebRTC.Media = (function(){
 
 			} else { log("what is this?",msg); }
 		};
-		session.ws.onclose = function(){
+		session.ws.onclose = function sessionwsclose(){
 			errorlog("Connection to Control Server lost.\n\nAuto-reconnect is partially implemented");
 			//session.retryTimer = setTimeout(function() {
 			//	if (session.ws.readyState === WebSocket.CLOSED){
@@ -666,7 +652,7 @@ WebRTC.Media = (function(){
 	session.publishStream = function(stream, title="Stream Sharing Session"){ //  stream is used to generated an SDP
 		log("STREAM SETUP");
 
-		stream.oninactive = function() {
+		stream.oninactive = function streamoninactive() {
 			errorlog('Stream inactive');
 		};
 		if (stream.getVideoTracks().length==0){
@@ -709,13 +695,16 @@ WebRTC.Media = (function(){
 			v.style.margin = "auto auto";
 			container.style.width="100%"; 
 			container.style.height="100%";
-			container.style.display = "flex";
+			//container.style.display = "flex";
+			v.style.position = "relative";
+			v.style.transform = "translate(0, -50%)";
+			v.style.top = "50%";
 			container.style.alignItems = "center";
 			container.backgroundColor = "#666";
 			
 			v.className = "";
 			
-			setTimeout(function(){dragElement(v);},1000);
+			setTimeout(function settimeoutdragelement(){dragElement(v);},1000);
 
 		}
 
@@ -754,7 +743,7 @@ WebRTC.Media = (function(){
 		for (var i=1; i<audioList.length;i++){
 			if (audioList[i].selected){
 				var constraint = {audio: {deviceId: {exact: audioList[i].value}}};
-				navigator.mediaDevices.getUserMedia(constraint).then(function (stream){
+				navigator.mediaDevices.getUserMedia(constraint).then((stream)=>{
 					streams.push(stream);
 				}).catch(errorlog);
 			}
@@ -776,12 +765,11 @@ WebRTC.Media = (function(){
 				
 				
 				session.screenshare = true;
-				stream.oninactive = function(){
-					log('Stream inactive');
-				};
+	
+	
 				console.log("adding tracks");
 				for (var i=0; i<streams.length;i++){
-					streams[i].getAudioTracks().forEach(function(track){
+					streams[i].getAudioTracks().forEach((track)=>{
 						stream.addTrack(track);
 						console.log(track);
 					});
@@ -923,35 +911,6 @@ WebRTC.Media = (function(){
 		session.sendMsg(data);
 	};
 
-	session.sendMessage = function(msg, UUID=null){ // I MIGHT NEED TO LOOK CLOSER AT THIS. ITS ONE DIRECTIONAL CURRENTLY
-		msg.timestamp = Date.now().toString();
-		msg.counter = session.counter;
-
-		session.signData(msg,function(data,signature){
-			session.counter += 1;
-
-			if (UUID == null){ // send to all RTC peers i'm publishing to
-				for (var i in session.pcs){
-					try{
-						session.pcs[i].sendChannel.send(JSON.stringify({data,signature}));
-					} catch(e){
-						log("RTC Connection seems to be dead? is it? If it is, or can't be validated, close this shit");
-						//session.pcs[i].close();
-						//delete(session.pcs[i]);
-					}
-				}
-			} else {
-				try{
-					session.pcs[UUID].sendChannel.send(JSON.stringify({data,signature}));
-				} catch(e){
-					log("RTC Connection seems to be dead? is it? If it is, or can't be validated, close this shit");
-					//session.pcs[UUID].close();
-					//delete(session.pcs[UUID]);
-				}	
-			}
-		});
-	};
-	
 	session.sendMessage = function(msg, UUID=null){ // Publisher signs the request. This lets sub-viewers, if any, verify if a message is from the original publisher or not.
 		msg.timestamp = Date.now().toString();
 		msg.counter = session.counter;
@@ -991,6 +950,42 @@ WebRTC.Media = (function(){
 			return false;
 		}	
 	};
+
+	
+	window.obsstudio.onVisibilityChange = function obsvisibility(visibility){
+		try {
+			log("OBS VISIBILITY:"+visibility);
+			if ((window.obsstudio) && (session.disableOBS===false)){	
+				for (var UUID in session.rpcs){
+					if (session.rpcs[UUID].visibility!==visibility){ // only move forward if there is a change; the event likes to double fire you see.
+						
+						session.rpcs[UUID].visibility = visibility;
+						
+						var bandwidth = parseInt(session.rpcs[UUID].targetBandwidth);  // we don't want to change the target bandwidth, as that's still the real goal and are point of reference for reverting this change.
+						log("bandwidth:"+bandwidth);
+						if (visibility==false){ // limit bandwidth if not visible
+							if ((bandwidth>100) || (bandwidth<0)){ // only set it to 50kbps if not already lower for some reason.
+								bandwidth = 100;
+							}
+						}
+						
+						var msg = {};
+						msg.visibility = visibility;
+						
+						if (session.rpcs[UUID].bandwidth !== bandwidth){ // bandwidth already set correctly. don't resent.
+							msg.bitrate = bandwidth;
+							if (session.sendRequest(msg, UUID)){
+								session.rpcs[UUID].bandwidth=bandwidth; // this is letting the system know what the actual bandwidth is, even if it isn't the real target.
+							}
+						} else {
+							session.sendRequest(msg, UUID); // no need to check
+						}
+					}
+				}
+			}
+		} catch (e){errorlog(e)};
+	};
+
 
 	session.remoteZoom = function(zoom){
 		try {
@@ -1040,8 +1035,8 @@ WebRTC.Media = (function(){
 			errorlog(e);
 		}
 	};
-
-
+	
+	
 	session.offerSDP = function(stream,UUID){  // publisher/offerer (PCS)
 		if (UUID in session.pcs){
 				errorlog("PROBLEM! RESENDING SDP OFFER SHOULD NOT HAPPEN");
@@ -1093,6 +1088,17 @@ WebRTC.Media = (function(){
 					}
 				}
 			}
+			if ("visibility" in msg){
+				if (msg.visibility==true){
+					if (document.getElementById("videosource")){
+						document.getElementById("videosource").style.boxShadow = "rgb(255, 200, 200) 0px 0px 135px 1px";
+					}
+				} else {
+					if (document.getElementById("videosource")){
+						document.getElementById("videosource").style.boxShadow = "rgb(128, 150, 135) 0px 0px 60px 1px";
+					}
+				}
+			}
 		};
 
 		log("pubs streams to offeR",stream.getTracks());	
@@ -1113,7 +1119,7 @@ WebRTC.Media = (function(){
 			session.sendMsg(data);
 		};
 
-		session.pcs[UUID].oniceconnectionstatechange = function(){
+		session.pcs[UUID].oniceconnectionstatechange = function sessiononconnectionstatechange(){
 			try {
 				if (this.iceConnectionState == 'closed') {
 					log('ICE closed?');
@@ -1122,7 +1128,7 @@ WebRTC.Media = (function(){
 					session.pcs[UUID].close();
 					session.pcs[UUID] = null;
 					if (session.security){
-						setTimeout(function() {alert("Remote peer disconnected. Due to enhanced security, please refresh to create a new connection.");}, 1);
+						setTimeout(function settimeoutpeerdisconnected() {alert("Remote peer disconnected. Due to enhanced security, please refresh to create a new connection.");}, 1);
 					}
 					delete(session.pcs[UUID]);
 				} else if (this.iceConnectionState == 'failed') {
@@ -1131,7 +1137,7 @@ WebRTC.Media = (function(){
 				} else if (this.iceCOnnectionState == "connected"){
 					if (session.security){
 							session.ws.close();
-							setTimeout(function() {alert("Remote peer connected to video stream.\n\nConnection to server being killed on request. This increases security, but the peer will not be able to reconnect automatically on connection failure.");}, 1);
+							setTimeout(function setitimeoutkilled() {alert("Remote peer connected to video stream.\n\nConnection to server being killed on request. This increases security, but the peer will not be able to reconnect automatically on connection failure.");}, 1);
 					}
 
 				} else {
@@ -1142,7 +1148,7 @@ WebRTC.Media = (function(){
 			}
 		};
 		
-		session.pcs[UUID].onconnectionstatechange = function(){
+		session.pcs[UUID].onconnectionstatechange = function sessiononconnecstatechange(){
 			switch (session.pcs[UUID].connectionState){
 				case "connected":
 					if (session.security){
@@ -1188,7 +1194,7 @@ WebRTC.Media = (function(){
 				//}
 				
 				
-				pc.setLocalDescription(description).then(function(){
+				pc.setLocalDescription(description).then(function setlocalpdescription(){
 					log("publishing SDP Offer");
 					var data = {};
 					data.description = pc.localDescription;
@@ -1199,18 +1205,18 @@ WebRTC.Media = (function(){
 			}).catch(onError);
 		};
 		
-		session.pcs[UUID].onnegotiationneeded = function(){ // bug: https://groups.google.com/forum/#!topic/discuss-webrtc/3-TmyjQ2SeE
+		session.pcs[UUID].onnegotiationneeded = function onnegtitatedneeded(){ // bug: https://groups.google.com/forum/#!topic/discuss-webrtc/3-TmyjQ2SeE
 			session.createOffer(session.pcs[UUID], UUID);
 		};
 
 		//session.pcs[UUID].sendChannel = session.pcs[UUID].createDataChannel("sendChannel");
-		session.pcs[UUID].onclose = function(){
+		session.pcs[UUID].onclose = function sessiononclosemsg(){
 			log("WebRTC Connection Closed. Clean up. 657");
 			session.pcs[UUID].
 			session.pcs[UUID] = null;
 			delete(session.pcs[UUID]);
 		};
-		session.pcs[UUID].onopen = function(){
+		session.pcs[UUID].onopen = function sessiononopensession(){
 			log("WEBRTC CONNECTION OPEN");
 
 		};
@@ -1218,7 +1224,7 @@ WebRTC.Media = (function(){
 	};
 
 	session.connectPeer = function(msg){ // someone is SENDING us a video stream
-		session.rpcs[msg.UUID].setRemoteDescription(msg.description).then(function(){  // description, onSuccess, onError
+		session.rpcs[msg.UUID].setRemoteDescription(msg.description).then(function seremotedescriptthen(){  // description, onSuccess, onError
 			if (session.rpcs[msg.UUID].remoteDescription.type === 'offer'){ // When receiving an offer/video lets answer it
 				session.rpcs[msg.UUID].createAnswer().then(function(description){  // creating answer
 					if (session.stereo){
@@ -1242,14 +1248,14 @@ WebRTC.Media = (function(){
 						description.sdp = CodecsHandler.preferCodec(description.sdp, session.codec); // default 
 					}
 					return session.rpcs[msg.UUID].setLocalDescription(description);
-				}).then(function(){
+				}).then(function providededanswer(){
 					log("providing answer");
 					var data = {};
 					data.UUID = msg.UUID;
 					data.description = session.rpcs[msg.UUID].localDescription; // send our updated self identify
 					session.sendMsg(data);
 
-					var data = {};
+					data = {};
 					data.request = "getkey";
 					//data.UUID = msg.UUID;   -- they other party does not need this
 					data.streamID = session.rpcs[msg.UUID].streamID;
@@ -1273,6 +1279,7 @@ WebRTC.Media = (function(){
 		session.rpcs[UUID].director=false;
 		session.rpcs[UUID].publisher=false;
 		session.rpcs[UUID].stats = false;
+		session.rpcs[UUID].visibility = true; // assume by default OBS has the scene visible
 		//session.rpcs[UUID].volume=1;
 		//session.rpcs[UUID].muted=false;
 		
@@ -1361,7 +1368,7 @@ WebRTC.Media = (function(){
 			}	
 		};
 
-		session.rpcs[UUID].oniceconnectionstatechange = function() {
+		session.rpcs[UUID].oniceconnectionstatechange = function oncicestaegchanrpcs() {
 			try{
 
 				if (this.iceConnectionState == 'closed') {
@@ -1465,7 +1472,8 @@ WebRTC.Media = (function(){
 				//}
 
 			};
-			session.rpcs[UUID].receiveChannel.onopen = function(){log("data channel opened");};
+			
+			//session.rpcs[UUID].receiveChannel.onopen = function(){log("data channel opened");};
 
 			session.rpcs[UUID].receiveChannel.onclose = () => {
 				log("rpc datachannel closed");
@@ -1474,49 +1482,132 @@ WebRTC.Media = (function(){
 			};
 		};
 
-		session.playoutdelay = function(UUID, sync=false){  // applies a delay to all videos
+		session.playoutdelay = function(UUID){  // applies a delay to all videos
 			var buffer = session.buffer || 0;
 			buffer = parseFloat(buffer)/1000;
 			log("playout delay: "+buffer);
 			
-			if (sync){
-				session.rpcs[UUID].stats
-			}
 			
-			if (session.buffer){
-				session.rpcs[UUID].getReceivers().forEach(function(receiver){
+			if (session.buffer!==false){
+				log("start");
+				var receivers = session.rpcs[UUID].getReceivers().reverse();
+				var video_delay = 0;
+				receivers.forEach(function(receiver){
 					try {
-						if (receiver.track) {
-							var buf = buffer;
 							for (var tid in session.rpcs[UUID].stats){
-								//log("XXXXX  "+session.rpcs[UUID].stats[tid].id);
-								//log("XYYYYX  "+receiver.track.id);
-								if (session.rpcs[UUID].stats[tid].id && session.rpcs[UUID].stats[tid].id==receiver.track.id){
-									//log("SYNC IS WORKIGN!");
+								if ((session.rpcs[UUID].stats[tid].id) && (session.rpcs[UUID].stats[tid].id==receiver.track.id) && (session.rpcs[UUID].stats[tid].delay)){
 									
-									var ddd = 0;
+									var buf = buffer;
+									var sync_offset = 0.0;
+									
 									if (session.rpcs[UUID].stats[tid].sync_offset){
-										ddd = session.rpcs[UUID].stats[tid].sync_offset;
+										sync_offset = session.rpcs[UUID].stats[tid].sync_offset;
+									} else {
+										session.rpcs[UUID].stats[tid].sync_offset = 0;
 									}
 									
-									buf = buf - session.rpcs[UUID].stats[tid].delay/1000 + ddd;
-									//log("new buf: "+buf);
-									if (buf<0){
-										buf = 0;
-										errorlog("Buffer is not large enough to stay in sync");
+									sync_offset+= buf - session.rpcs[UUID].stats[tid].delay;
+									
+									if (session.rpcs[UUID].stats[tid].type=="audio"){
+										if (!(receiver.delayNode)){  // setup audio delay node; works to sync audio and video; does not delay video
+											var audioCtx = new AudioContext();
+											var source = audioCtx.createMediaStreamSource(new MediaStream([receiver.track]));
+											receiver.delayNode = audioCtx.createDelay(5.0);
+											var audio_delay = (video_delay - session.rpcs[UUID].stats[tid].delay); // video is typically showing greater delay than video
+											if (audio_delay<0){audio_delay=0;}
+											receiver.delayNode.delayTime.value = parseFloat(audio_delay);
+											source.connect(receiver.delayNode);
+											var dst = audioCtx.createMediaStreamDestination();
+											receiver.delayNode.connect(dst);
+											log("delaying audio by: "+audio_delay);
+										} else {
+											var audio_delay = (video_delay - session.rpcs[UUID].stats[tid].delay); // video is typically showing greater delay than video
+											if (audio_delay<0){audio_delay=0;}  // Since playoutDelay may not be compatible, since its not with OBS v25, all we can do is delay audio; not delay video
+											receiver.delayNode.delayTime.value = parseFloat(audio_delay); // apply delay delta (different between video and audio) ; it's not instant.
+											log("delaying audio by: "+audio_delay);
+										}
+									} else {
+										video_delay = session.rpcs[UUID].stats[tid].delay;
+										if(sync_offset<0){sync_offset=0;}
+										session.rpcs[UUID].stats[tid].sync_offset = sync_offset;
+										receiver.playoutDelayHint = sync_offset;	  // only the video we are going to do the playout delay for; doesn't work well with audio.
 									}
-									session.rpcs[UUID].stats[tid].sync_offset = buf;
 								}
 							}
-							receiver.playoutDelayHint = buf;
-						} 
-						//log(receiver);
 					} catch (e){errorlog(e);}
 				});	
 			}
 		};
 
-		
+		session.processStats = function(UUID){
+			try {
+				session.rpcs[UUID].getStats().then(function(stats){
+					setTimeout(session.processStats, 5000, UUID);
+					console.log("STTTTTTTTATS");
+					if (!session.rpcs[UUID].stats){
+						
+						session.rpcs[UUID].stats = {};
+						
+						stats.forEach(stat=>{
+							if ((stat.type=="track") && (stat.remoteSource==true)){
+								var media = {};
+								media.jitter_delay = parseFloat(stat.jitterBufferDelay) || 0;
+								media.jitter_count = parseInt(stat.jitterBufferEmittedCount) || 0;
+								media.id = stat.trackIdentifier;
+								media.delay = 0;
+								media.type = stat.kind;
+								session.rpcs[UUID].stats[stat.id] = media;
+							} 
+						});
+						return;
+					}
+					
+					stats.forEach(stat=>{
+						if ((stat.type=="track") && (stat.remoteSource==true)){
+							if (stat.id in session.rpcs[UUID].stats){
+								
+								log(stat);
+								
+								session.rpcs[UUID].stats[stat.id].delay = (parseFloat(stat.jitterBufferDelay) - session.rpcs[UUID].stats[stat.id].jitter_delay)/(parseInt(stat.jitterBufferEmittedCount) - session.rpcs[UUID].stats[stat.id].jitter_count) || 0;
+								session.rpcs[UUID].stats[stat.id].jitter_delay = parseFloat(stat.jitterBufferDelay) || 0;
+								session.rpcs[UUID].stats[stat.id].jitter_count = parseInt(stat.jitterBufferEmittedCount) || 0;
+								if ("frameWidth" in stat){
+									session.rpcs[UUID].stats[stat.id].width = stat.frameWidth;
+								}
+								if ("frameHeight" in stat){
+									session.rpcs[UUID].stats[stat.id].height = stat.frameHeight;
+								}
+								//log(stat);
+							} else {
+								var media = {};
+								media.jitter_delay = parseFloat(stat.jitterBufferDelay) || 0;
+								media.jitter_count = parseInt(stat.jitterBufferEmittedCount) || 0;
+								media.id = stat.trackIdentifier;
+								media.delay = 0;
+								media.type = stat.kind;
+								session.rpcs[UUID].stats[stat.id] = media;
+							}
+						} else if (stat.type=="remote-candidate"){
+							session.rpcs[UUID].stats.remote_peer = stat.candidateType;
+							
+						} else if (stat.type=="local-candidate"){
+							session.rpcs[UUID].stats.local_peer = stat.candidateType;
+							
+						} else if ((stat.type=="inbound-rtp") && ("trackId" in stat)){
+							session.rpcs[UUID].stats[stat.trackId] = session.rpcs[UUID].stats[stat.trackId] || {};
+							session.rpcs[UUID].stats[stat.trackId].last_bytes = session.rpcs[UUID].stats[stat.trackId].last_bytes || stat.bytesReceived;
+							session.rpcs[UUID].stats[stat.trackId].last_time = session.rpcs[UUID].stats[stat.trackId].last_time || stat.timestamp;
+							session.rpcs[UUID].stats[stat.trackId].bitrate_kbps =  8*(stat.bytesReceived - session.rpcs[UUID].stats[stat.trackId].last_bytes)/( stat.timestamp - session.rpcs[UUID].stats[stat.trackId].last_time);
+							session.rpcs[UUID].stats[stat.trackId].type = stat.mediaType;
+						}
+						
+					});
+					if (session.buffer!==false){
+						session.playoutdelay(UUID);
+					}
+				});
+			} catch (e){errorlog(e);}
+		};
 
 		session.printStats = function(uid,ele){
 			//log();
@@ -1535,20 +1626,14 @@ WebRTC.Media = (function(){
 		};
 
 		session.rpcs[UUID].ontrack = event => {
-
-			log("streams:",event.streams);
-			log(event.streams[0].getVideoTracks());
-			log(event.streams[0].getAudioTracks());
 			
 			const stream = event.streams[0];
 			session.rpcs[UUID].streamSrc = stream;
-
 			session.playoutdelay(UUID);
 			
 			// for (rpc in session.rpcs){session.rpcs[rpc].getStats().then(function(stats) {stats.forEach(stat=>{if (stat.id.includes("RTCIce")){console.log(stat)}})})};
 
 			if (session.rpcs[UUID].videoElement){
-				log("new track added to mediastream");
 				var v = session.rpcs[UUID].videoElement;
 				if (session.rpcs[UUID].connectionState ==  "connected"){
 					v.srcObject = stream;
@@ -1662,7 +1747,7 @@ WebRTC.Media = (function(){
 				}
 				
 				if (v.controls == false){
-					v.addEventListener("click", function() {
+					v.addEventListener("click", function clicktoplayfunc() {
 						v.play().then(_ => {
 						  log("playing");
 						})
@@ -1671,7 +1756,7 @@ WebRTC.Media = (function(){
 						});
 					});
 					if (session.nocursor==false){ // we do not want to show the controls. This is because MacOS + OBS does not work; so electron app needs this.
-						setTimeout(function(){v.controls=true;},3000); // 3 seconds before I enable the controls automatically. This way it doesn't auto appear during loading.  3s enough, right?
+						setTimeout(function timeoutnocusorcontrol(){v.controls=true;},3000); // 3 seconds before I enable the controls automatically. This way it doesn't auto appear during loading.  3s enough, right?
 					}
 					
 					v.play().then(_ => {
@@ -1681,71 +1766,8 @@ WebRTC.Media = (function(){
 					});
 				}
 				
-				setInterval(function(){
-					try {
-						session.rpcs[UUID].getStats().then(function(stats){
-							console.log("STTTTTTTTATS");
-							if (!session.rpcs[UUID].stats){
-								
-								session.rpcs[UUID].stats = {};
-								
-								stats.forEach(stat=>{
-									if ((stat.type=="track") && (stat.remoteSource==true)){
-										media = {};
-										media.jitter_delay = stat.jitterBufferDelay;
-										media.jitter_count = stat.jitterBufferEmittedCount;
-										media.id = stat.trackIdentifier;
-										media.delay = 0;
-										media.type = stat.kind;
-										session.rpcs[UUID].stats[stat.id] = media;
-									} 
-								});
-								return;
-							}
-							
-							stats.forEach(stat=>{
-								if ((stat.type=="track") && (stat.remoteSource==true)){
-									if (stat.id in session.rpcs[UUID].stats){
-										session.rpcs[UUID].stats[stat.id].delay = 1000*(stat.jitterBufferDelay - session.rpcs[UUID].stats[stat.id].jitter_delay)/(stat.jitterBufferEmittedCount - session.rpcs[UUID].stats[stat.id].jitter_count);
-										session.rpcs[UUID].stats[stat.id].jitter_delay = stat.jitterBufferDelay;
-										session.rpcs[UUID].stats[stat.id].jitter_count = stat.jitterBufferEmittedCount;
-										if ("frameWidth" in stat){
-											session.rpcs[UUID].stats[stat.id].width = stat.frameWidth;
-										}
-										if ("frameHeight" in stat){
-											session.rpcs[UUID].stats[stat.id].height = stat.frameHeight;
-										}
-										//log(stat);
-									} else {
-										media = {};
-										media.jitter_delay = stat.jitterBufferDelay;
-										media.jitter_count = stat.jitterBufferEmittedCount;
-										media.id = stat.trackIdentifier;
-										media.delay = 0;
-										media.type = stat.kind;
-										session.rpcs[UUID].stats[stat.id] = media;
-									}
-								} else if (stat.type=="remote-candidate"){
-									session.rpcs[UUID].stats["remote_peer"] = stat.candidateType;
-									
-								} else if (stat.type=="local-candidate"){
-									session.rpcs[UUID].stats["local_peer"] = stat.candidateType;
-									
-								} else if ((stat.type=="inbound-rtp") && ("trackId" in stat)){
-									session.rpcs[UUID].stats[stat.trackId] = session.rpcs[UUID].stats[stat.trackId] || {};
-									session.rpcs[UUID].stats[stat.trackId].last_bytes = session.rpcs[UUID].stats[stat.trackId].last_bytes || stat.bytesReceived;
-									session.rpcs[UUID].stats[stat.trackId].last_time = session.rpcs[UUID].stats[stat.trackId].last_time || stat.timestamp;
-									session.rpcs[UUID].stats[stat.trackId].bitrate_kbps =  8*(stat.bytesReceived - session.rpcs[UUID].stats[stat.trackId].last_bytes)/( stat.timestamp - session.rpcs[UUID].stats[stat.trackId].last_time);
-									session.rpcs[UUID].stats[stat.trackId].type = stat.mediaType;
-								}
-								
-							});
-							if (session.buffer){
-								session.playoutdelay(UUID, true)
-							}
-						});
-					} catch (e){errorlog(e);}
-				}, 5000);
+				
+				setTimeout(session.processStats, 1000, UUID);
 				
 			}
 		};
