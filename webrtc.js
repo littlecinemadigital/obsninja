@@ -69,7 +69,7 @@ WebRTC.Media = (function webrtcmediamain(){
 	//session.configuration.iceServers.push(turn);
 	var AudioContext = window.AudioContext || window.webkitAudioContext;
 	log(session.configuration);
-    
+    session.audio = true; // should we ask peer for audio
 	session.bitrate = false; // 20000;
 	session.buffer = false;
 	session.codec = false ; // "vp9" //"h264"; // Setting the default codec to VP9?  ugh. Seems stable, but high CPU.
@@ -99,6 +99,7 @@ WebRTC.Media = (function webrtcmediamain(){
 	session.streamID = null; // This computer has its own streamID; this implies it can only publish 1 stream per session.
 	session.streamSrc = null; // location of this computer's stream, if there is one
 	session.sync = false;
+	session.video = true; // should we ask peer for video
 	session.videoElement = false;
 	session.videoMuted = false;
 	session.view = false;
@@ -483,89 +484,14 @@ WebRTC.Media = (function webrtcmediamain(){
 					session.offerSDP(session.streamSrc, msg.UUID);
 				} else if (msg.request=="listing"){ // Get a list of streams you have access to
 					log(msg.list);
-					session.listPromise.resolve(msg.list);
+					session.listPromise.resolve(msg.list); // used for rooms
 				} else if (msg.request=="genkey"){ // prevents spoofing ; more for future work 
 					session.generateCrypto();
 				} else if (msg.request=="publickey"){ // prevents spoofing
 					session.importCrypto(msg.key, msg.streamID);
 				} else if (msg.request=="sendroom"){ // send a message to those in the group via server. p2p is probably the preferred method, but not always possible
 					log("Inbound User-based Message from Room");
-					try {
-						if ("director" in msg){
-							if (msg.director === session.scene){
-								if ("action" in msg){
-									if ("target" in msg){
-										for (var i in session.rpcs){ // If you are VIEWING this use
-											if (i === msg.target){
-												if ("value" in msg){
-													if (msg.action == "mute"){	
-														if (msg.value == 0){
-															log("Mute video -306");
-															
-															if (session.rpcs[i].videoElement){
-																session.rpcs[i].videoElement.muted = true;
-																session.rpcs[i].director = 0;
-															}
-														} else {
-															log("Unmute video");
-															if (session.rpcs[i].videoElement){
-																session.rpcs[i].director = 1;
-																if (session.rpcs[i].publisher!==false){
-																	if (session.rpcs[i].publisher == 0){
-																		log("did not mute");
-																		return;} // if the publisher wants it muted. it says muted
-																}
-																session.rpcs[i].videoElement.muted = false;
-															}
-														}
-													}  else if (msg.action == "display"){
-														if (msg.value == 0) { 
-															if (session.rpcs[i].videoElement){
-																session.rpcs[i].videoElement.style.display="none";
-																///  I can probably just go thru the RPCS[] list, using UUID, and say "visible" or not. Use Update on that instead.
-																// I won't need to update the lement directly , just the update function.
-															}
-															updateMixer();
-														} else { 
-															if (session.rpcs[i].videoElement){
-																session.rpcs[i].videoElement.style.display="block";
-															
-																if (session.rpcs[i].videoElement===false){
-																	session.rpcs[i].director = 1;
-																}
-																if (session.rpcs[i].director){
-																	if (session.rpcs[i].publisher!==false){
-																		if (session.rpcs[i].publisher == 0){return;}
-																			
-																		session.rpcs[i].videoElement.muted=false;
-																		log("UN-MUTED");
-																	
-
-																	}	
-																}
-															}
-															updateMixer();
-														}
-													} else if (msg.action == "volume"){
-														log(parseInt(msg.value)/100.0);
-														if (session.rpcs[i].videoElement){
-															session.rpcs[i].videoElement.volume=parseInt(msg.value)/100.0;
-															log("UN-MUTED");
-														}
-													}
-												}
-											}
-										}
-
-									}
-								}
-							}
-						}
-					} catch(e){
-                         errorlog(e);
-				    }
-
-
+					// moved all this to WebRTC
 					log(msg);
 				} else if (msg.request=="someonejoined"){ // someone joined the room.  they may not have a video submitted: like the director.
 					log("Someone Joined the Room");
@@ -737,7 +663,7 @@ WebRTC.Media = (function webrtcmediamain(){
 		log("SCREEN SHARE SETUP");
 		if (!navigator.mediaDevices.getDisplayMedia){
 			alert("Sorry, your browser is not supported. Please use the desktop versions of Firefox or Chrome instead");
-			return;
+			return false;
 		}
 		var streams = [];
 		for (var i=1; i<audioList.length;i++){
@@ -750,7 +676,7 @@ WebRTC.Media = (function webrtcmediamain(){
 		}
 		
 		console.log(streams);
-		navigator.mediaDevices.getDisplayMedia(constraints)
+		return navigator.mediaDevices.getDisplayMedia(constraints)
 			.then(function (stream) {
 				
 				if (session.roomid){
@@ -838,14 +764,16 @@ WebRTC.Media = (function webrtcmediamain(){
 				data.streamID = session.streamID;
 				data.title = title;
 				session.sendMsg(data);
+				return true;
 				
 				
 			}).catch(function(error){
 				log('getDisplayMedia error: ' + error.name, error);
 				errorlog(error);
+				return false;
 				//alert("You have denied the website access to screen-share. You will need to refresh to try again.");
 				
-		});
+			});
 	};
 
 	session.publishFile = function(ele,event, title="Video File Sharing Session"){ // webcam stream is used to generated an SDP
@@ -951,40 +879,41 @@ WebRTC.Media = (function webrtcmediamain(){
 		}	
 	};
 
-	
-	window.obsstudio.onVisibilityChange = function obsvisibility(visibility){
-		try {
-			log("OBS VISIBILITY:"+visibility);
-			if ((window.obsstudio) && (session.disableOBS===false)){	
-				for (var UUID in session.rpcs){
-					if (session.rpcs[UUID].visibility!==visibility){ // only move forward if there is a change; the event likes to double fire you see.
-						
-						session.rpcs[UUID].visibility = visibility;
-						
-						var bandwidth = parseInt(session.rpcs[UUID].targetBandwidth);  // we don't want to change the target bandwidth, as that's still the real goal and are point of reference for reverting this change.
-						log("bandwidth:"+bandwidth);
-						if (visibility==false){ // limit bandwidth if not visible
-							if ((bandwidth>100) || (bandwidth<0)){ // only set it to 50kbps if not already lower for some reason.
-								bandwidth = 100;
+	if (window.obsstudio){
+		window.obsstudio.onVisibilityChange = function obsvisibility(visibility){
+			try {
+				log("OBS VISIBILITY:"+visibility);
+				if (session.disableOBS===false){	
+					for (var UUID in session.rpcs){
+						if (session.rpcs[UUID].visibility!==visibility){ // only move forward if there is a change; the event likes to double fire you see.
+							
+							session.rpcs[UUID].visibility = visibility;
+							
+							var bandwidth = parseInt(session.rpcs[UUID].targetBandwidth);  // we don't want to change the target bandwidth, as that's still the real goal and are point of reference for reverting this change.
+							log("bandwidth:"+bandwidth);
+							if (visibility==false){ // limit bandwidth if not visible
+								if ((bandwidth>100) || (bandwidth<0)){ // only set it to 50kbps if not already lower for some reason.
+									bandwidth = 100;
+								}
 							}
-						}
-						
-						var msg = {};
-						msg.visibility = visibility;
-						
-						if (session.rpcs[UUID].bandwidth !== bandwidth){ // bandwidth already set correctly. don't resent.
-							msg.bitrate = bandwidth;
-							if (session.sendRequest(msg, UUID)){
-								session.rpcs[UUID].bandwidth=bandwidth; // this is letting the system know what the actual bandwidth is, even if it isn't the real target.
+							
+							var msg = {};
+							msg.visibility = visibility;
+							
+							if (session.rpcs[UUID].bandwidth !== bandwidth){ // bandwidth already set correctly. don't resent.
+								msg.bitrate = bandwidth;
+								if (session.sendRequest(msg, UUID)){
+									session.rpcs[UUID].bandwidth=bandwidth; // this is letting the system know what the actual bandwidth is, even if it isn't the real target.
+								}
+							} else {
+								session.sendRequest(msg, UUID); // no need to check
 							}
-						} else {
-							session.sendRequest(msg, UUID); // no need to check
 						}
 					}
 				}
-			}
-		} catch (e){errorlog(e)};
-	};
+			} catch (e){errorlog(e)};
+		};
+	}
 
 
 	session.remoteZoom = function(zoom){
@@ -1059,15 +988,15 @@ WebRTC.Media = (function webrtcmediamain(){
 			log("send channel closed");
          };
 
-		session.pcs[UUID].sendChannel.onmessage = (e)=>{
+		session.pcs[UUID].sendChannel.onmessage = (e)=>{  // the publisher is getting a message from its viewer.  Things like, please zoom in.
 			log("recieved data from viewer");
 			var msg = JSON.parse(e.data);
 			log(msg);
 			if ("bitrate" in msg){
 				session.limitBitrate(UUID, msg.bitrate);
 			}
-			if ("zoom" in msg){
-				if (session.remote){
+			if ("zoom" in msg){  
+				if (session.remote){  // can only ask to zoom in if passwords match
 					if ("remote" in msg){
 						if (msg.remote === session.remote){ // authorized
 							session.remoteZoom(parseFloat(msg.zoom));
@@ -1088,7 +1017,7 @@ WebRTC.Media = (function webrtcmediamain(){
 					}
 				}
 			}
-			if ("visibility" in msg){
+			if ("visibility" in msg){  // This can be spoofed by anyone, but it's harmless. won't bother to password protect
 				if (msg.visibility==true){
 					if (document.getElementById("videosource")){
 						document.getElementById("videosource").style.boxShadow = "rgb(255, 200, 200) 0px 0px 135px 1px";
@@ -1099,12 +1028,106 @@ WebRTC.Media = (function webrtcmediamain(){
 					}
 				}
 			}
-		};
+			
+			if (("audio" in msg) || ("video" in msg)){ // this adds audio/video for just the person sending the message; so it's safe to allow. (iOS publishers need to check to make sure tho)
+				stream.getTracks().forEach(track => {
+					if ("audio" in msg){
+						if (msg.audio==true){
+							if (track.kind=="audio"){
+								session.pcs[UUID].addTrack(track, stream);
+							}
+						}
+					}
+					if ("video" in msg){
+						if (msg.video==true){
+							if (track.kind=="video"){
+								session.pcs[UUID].addTrack(track, stream);
+							}
+						}
+					}
+				});
+			}
+			/// validate who is the DIRECTOR ; use the UUID and signing
+			try {
+				if ("director" in msg){  //  This is the director-related feed
+					if (msg.director === session.scene){
+						if ("action" in msg){
+							if ("target" in msg){
+								for (var i in session.rpcs){ // If you are VIEWING this use
+									if (i === msg.target){
+										if ("value" in msg){
+											if (msg.action == "mute"){	
+												if (msg.value == 0){
+													log("Mute video -306");
+													
+													if (session.rpcs[i].videoElement){
+														session.rpcs[i].videoElement.muted = true;
+														session.rpcs[i].director = 0;
+													}
+												} else {
+													log("Unmute video");
+													if (session.rpcs[i].videoElement){
+														session.rpcs[i].director = 1;
+														if (session.rpcs[i].publisher!==false){
+															if (session.rpcs[i].publisher == 0){
+																log("did not mute");
+																return;} // if the publisher wants it muted. it says muted
+														}
+														session.rpcs[i].videoElement.muted = false;
+													}
+												}
+											}  else if (msg.action == "display"){
+												if (msg.value == 0) { 
+													if (session.rpcs[i].videoElement){
+														session.rpcs[i].videoElement.style.display="none";
+														///  I can probably just go thru the RPCS[] list, using UUID, and say "visible" or not. Use Update on that instead.
+														// I won't need to update the lement directly , just the update function.
+													}
+													updateMixer();
+												} else { 
+													if (session.rpcs[i].videoElement){
+														session.rpcs[i].videoElement.style.display="block";
+													
+														if (session.rpcs[i].videoElement===false){
+															session.rpcs[i].director = 1;
+														}
+														if (session.rpcs[i].director){
+															if (session.rpcs[i].publisher!==false){
+																if (session.rpcs[i].publisher == 0){return;}
+																	
+																session.rpcs[i].videoElement.muted=false;
+																log("UN-MUTED");
+															
 
-		log("pubs streams to offeR",stream.getTracks());	
-		stream.getTracks().forEach(track => {
-			var sender = session.pcs[UUID].addTrack(track, stream);
-		});
+															}	
+														}
+													}
+													updateMixer();
+												}
+											} else if (msg.action == "volume"){
+												log(parseInt(msg.value)/100.0);
+												if (session.rpcs[i].videoElement){
+													session.rpcs[i].videoElement.volume=parseInt(msg.value)/100.0;
+													log("UN-MUTED");
+												}
+											}
+										}
+									}
+								}
+
+							}
+						}
+					}
+				}
+			} catch(e){
+				 errorlog(e);
+			}
+		}
+
+		//log("pubs streams to offeR",stream.getTracks());	
+		//stream.getTracks().forEach(track => {
+		//	var sender = session.pcs[UUID].addTrack(track, stream);
+		//});
 		
 		session.pcs[UUID].ontrack = event => {errorlog("Publisher is being sent a video stream??? NOT EXPECTED!");};
 
@@ -1135,11 +1158,11 @@ WebRTC.Media = (function webrtcmediamain(){
 					log('ICE FAILed. bad?');
 					
 				} else if (this.iceCOnnectionState == "connected"){
+					
 					if (session.security){
 							session.ws.close();
 							setTimeout(function setitimeoutkilled() {alert("Remote peer connected to video stream.\n\nConnection to server being killed on request. This increases security, but the peer will not be able to reconnect automatically on connection failure.");}, 1);
 					}
-
 				} else {
 					log(this.iceConnectionState);
 				}
@@ -1429,13 +1452,18 @@ WebRTC.Media = (function webrtcmediamain(){
 
 			session.rpcs[UUID].receiveChannel = event.channel;
 			
-			session.rpcs[UUID].receiveChannel.onmessage = (e)=>{
+			var msg = {}; // Request video/audio
+			msg.audio = session.audio;
+			msg.video = session.video;
+			session.sendRequest(msg, UUID);  // send via WebRTC
+			
+			session.rpcs[UUID].receiveChannel.onmessage = (e)=>{ // the publisher is telling the viewer to do something; like mute their mic
 				log("recieved data: "+e.data);
 				var msg = JSON.parse(e.data);
 				log(msg);
 				//if (session.verifyData(msg,session.rpcs[UUID]['streamID'])){  // I'm just going to disable security for now.
 				if ("data" in msg){
-					if ("volume" in msg.data){
+					if ("volume" in msg.data){ // mute or change volume
 						log("Changing volume");
 						log(parseInt(msg.data.volume)/100.0);
 						var volume = parseInt(msg.data.volume)/100.0; //
@@ -1453,7 +1481,7 @@ WebRTC.Media = (function webrtcmediamain(){
 								return;
 							}
 						}
-						if (!session.director){
+						if (!session.director){ // we shouldn't be muting or such unless its the director
 							if (session.rpcs[UUID].videoElement.volume==0){
 								if (volume>0){
 									session.rpcs[UUID].videoElement.muted=false; // TODO: THIS SHOULDn't be UUID? or should it be STREAMID? *fak*
@@ -1628,6 +1656,7 @@ WebRTC.Media = (function webrtcmediamain(){
 		session.rpcs[UUID].ontrack = event => {
 			
 			const stream = event.streams[0];
+			
 			session.rpcs[UUID].streamSrc = stream;
 			session.playoutdelay(UUID);
 			
@@ -1641,7 +1670,6 @@ WebRTC.Media = (function webrtcmediamain(){
 				} 
 			} else {
 				log("video element is being created and media track added");
-				
 
 				var container = document.createElement("div");	
 				container.id = "container_"+UUID;

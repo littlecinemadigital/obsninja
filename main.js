@@ -145,6 +145,15 @@ if (urlParams.has('obsoff')){
     session.disableOBS = true;
 }
 
+if (urlParams.has('noaudio')){
+	log("disable audio playback");
+    session.audio = false;
+}
+
+if (urlParams.has('novideo')){
+	log("disable video playback");
+    session.video = false;
+}
 
 if (urlParams.has('nocursor')){
 	session.nocursor = true;
@@ -537,9 +546,20 @@ function publishScreen(){
 	var title = "ScreenShare";//document.getElementById("videoname2").value;
 
 	formSubmitting = false;
-
+	
+	var quality = parseInt(document.getElementById("webcamquality2").elements.namedItem("resolution2").value);
+	
 	var width = {ideal: 1280};
 	var height = {ideal: 720};
+	
+	if (quality==1){
+		var width = {ideal: 1920};
+		var height = {ideal: 1080};
+		
+	} else if (quality==3){
+		var width = {ideal: 640};
+		var height = {ideal: 360};
+	}
 
 	if (session.width){
 		width = {ideal: session.width};
@@ -559,15 +579,17 @@ function publishScreen(){
 	
 	var audioSelect = document.querySelector('select#audioSourceScreenshare');
 	
-	session.publishScreen(constraints, title, audioSelect);
-	log("streamID is: "+session.streamID);
+	session.publishScreen(constraints, title, audioSelect).then((res)=>{
+		if (res==false){return;} // no screen selected
+		log("streamID is: "+session.streamID);
 
-	document.getElementById("mutebutton").className="float3";
-	document.getElementById("helpbutton").className="float2";
-	document.getElementById("mutevideobutton").className="float4";
+		document.getElementById("mutebutton").className="float3";
+		document.getElementById("helpbutton").className="float2";
+		document.getElementById("mutevideobutton").className="float4";
 
-	document.getElementById("head1").className = 'advanced';
-	document.getElementById("head2").className = 'advanced';
+		document.getElementById("head1").className = 'advanced';
+		document.getElementById("head2").className = 'advanced';
+	}).catch(()=>{});
 
 }
 function publishWebcam(){

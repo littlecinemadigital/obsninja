@@ -94,28 +94,35 @@
 		<div id="container-3" class="column columnfade" onclick="previewWebcam()"  style="background-color:#ddd;">
 			<h2 id="add_camera"><span data-translate="add-your-camera">Add your Camera to OBS</span></h2>
 			<div class="container-inner"><br />
-				<p><span data-translate="select-audio-video">Select the audio/video source below</span></p>
-				<button onclick="publishWebcam()" id="gowebcam" class="gowebcam"><span data-translate="waiting-for-camera">Waiting for Camera to Load</span></button>
-				<p><video id="previewWebcam" oncanplay="updateStats();"  muted controls autoplay playsinline style="max-width:640px; max-width:83vw; max-height:30vh"></video>
 				
-				</p>
+				<p><video id="previewWebcam" oncanplay="updateStats();"  muted controls autoplay playsinline style="max-width:640px; max-width:83vw; max-height:30vh"></video></p>
+
 				<div id="infof"></div>
+				<button onclick="publishWebcam()" id="gowebcam" class="gowebcam"><span data-translate="waiting-for-camera">Waiting for Camera to Load</span></button>
 				<br/>
-				<p><span data-translate="video-source">Video source</span>: <select id="videoSource"></select></p><br/>
 				
-				<form id="webcamquality">
-				<input type="radio" id="fullhd" name="resolution" value="0">
-				<label for="fullhd"><span data-translate="max-resolution">Max Resolution</span> </label> | 
-				<input type="radio" checked id="halfhd" name="resolution" value="1">
-				<label for="halfhd"><span data-translate="balanced">Balanced</span> </label> | 
-				<input type="radio" id="nothd" name="resolution" value="3">
-				<label for="nothd"><span data-translate="smooth-cool">Smooth and Cool</span></label>
-				</form>
-				<center><div id="webcamstats" ></div></center><br/>
-	
+				<span style=" background-color: #f3f3f3; display: inline-block; padding:5px 10px; border: 1px solid #ccc; vertical-align: middle;">
+					<span data-translate="video-source">Video source</span>: <select id="videoSource" style="background-color: #FFF; padding:5px; display: display:inline-block;vertical-align: middle;"></select>
+					<span style="display:inline-block" onclick="toggle(document.getElementById('videoSettings'));">
+						&nbsp;&nbsp;<i class="fa fa-cog" style="font-size: 170%; vertical-align: middle;" aria-hidden="true"></i>
+					</span>
+				</span><br />
+				<center>
+				<span id='videoSettings' style="margin:auto auto; display:none; background-color: #f3f3f3; max-width:500px; padding:10px 0; margin: 0 0 5px 0;">
+					<form id="webcamquality">
+					<input type="radio" id="fullhd" name="resolution" value="0">
+					<label for="fullhd"><span data-translate="max-resolution">Max Resolution</span> </label> | 
+					<input type="radio" checked id="halfhd" name="resolution" value="1">
+					<label for="halfhd"><span data-translate="balanced">Balanced</span> </label> | 
+					<input type="radio" id="nothd" name="resolution" value="3">
+					<label for="nothd"><span data-translate="smooth-cool">Smooth and Cool</span></label>
+					<div id="webcamstats" style="padding:5px 0 0 0"></div>
+					</form>
+				</span><br/>
+				</center>
 				<div class="form-group multiselect">
 					<a class="form-control multiselect-trigger" tabindex="3">
-						<div id="audioTitle" class="title"><span data-translate="select-audio-source">Select Audio Source</span>:<i class="fa fa-chevron-down" aria-hidden="true"></i> </div>
+						<div id="audioTitle"  style="padding:5px" class="title"><span data-translate="select-audio-source">Select Audio Source</span>:<i class="fa fa-chevron-down" aria-hidden="true"></i> </div>
 					</a>
 					<ul id="audioSource" class="multiselect-contents">
 						<li><input type="checkbox" id="multiselect1" name="multiselect1" style="display:none" checked value="ZZZ"> <label for="multiselect1">
@@ -140,8 +147,26 @@
 					<p><img src="./images/share.jpg" style="max-height:55vh"/></p>
 				</span>
 				<br />
-				<button style="padding:10px;border:3px solid #CCC; cursor:pointer; background-color:#FFF" onclick="publishScreen()" ><span data-translate="select-screen-to-share">SELECT SCREEN TO SHARE</span></button>
-				<br /><br />
+				<button style="padding:13px;border:3px solid #CCC; font-size:140%; cursor:pointer; background-color:#FFF" onclick="publishScreen()" ><span data-translate="select-screen-to-share">SELECT SCREEN TO SHARE</span></button>
+				
+				<span style="display:inline-block ;cursor:pointer;" onclick="toggle(document.getElementById('videoSettings2'));">
+					&nbsp;&nbsp;<i class="fa fa-cog" style="font-size: 170%; vertical-align: middle;" aria-hidden="true"></i>
+				</span>
+					
+				<center>
+				
+				<span id='videoSettings2' style="margin:auto auto; display:none; background-color: white; vertical-aligh:middle; border: 3px solid #ccc; max-width:500px; padding:10px 0 5px 0; margin: 10px 0 5px 0;">
+					<form id="webcamquality2">
+					<input type="radio" id="fullhd2" name="resolution2" value="0">
+					<label for="fullhd"><span data-translate="max-resolution">1080p (hi-def)</span> </label> &nbsp;&nbsp;|&nbsp;&nbsp;
+					<input type="radio" checked id="halfhd2" name="resolution2" value="1">
+					<label for="halfhd"><span data-translate="balanced">720p (balanced)</span> </label> &nbsp;&nbsp;|&nbsp;&nbsp;
+					<input type="radio" id="nothd2" name="resolution2" value="3">
+					<label for="nothd"><span data-translate="smooth-cool">360p (smooth)</span></label>
+					<div id="webcamstats2" style="padding:5px 0 0 0"></div>
+					</form>
+				</span><br/>
+				</center>
 				<p><span data-translate="audio-sources">Audio Sources</span>:<br />
 				<select id="audioSourceScreenshare" multiple style="height:60px;width:200px; resize: both; overflow: auto; padding:5px" onchange="requestAudioStream();">
 				<option value="screenshare" selected><span data-translate="screen-shrae-audio">Screen Share Audio (default)</span></option>
@@ -195,8 +220,8 @@
 						<br />
 						<i><font style="color:red">Known issues:</font></i><br />
 
-						<li><i class="fa fa-apple" aria-hidden="true"></i> MacOS users need to use OBS v23 or resort to <i>Window Capturing</i> a Chrome Browser with OBS v25</li>
-						<li>Some users will have "pixelation" problems with videos. Please add the URL parameter <b>&codec=vp9</b> to the OBS Links to correct it.</li>
+						<li><i class="fa fa-apple" aria-hidden="true"></i> <a href='https://github.com/steveseguin/obsninja/wiki/FAQ#mac-os'>MacOS users</a> need to use OBS v23 or resort to <i>Window Capturing</i> a Chrome Browser with OBS v25</li>
+						<li>Some users will have <a href='https://github.com/steveseguin/obsninja/wiki/FAQ#video-is-pixelated'>"pixelation" problems</a> with videos. Please add the URL parameter <b>&codec=vp9</b> to the OBS Links to correct it.</li>
 						<br />
 						
 						Site last updated: <a href='https://www.reddit.com/r/OBSNinja/comments/gf5pd3/new_version_released_today_along_with_new/'>May 7th, 2020.</a> The previous version can be found at <a href="https://obs.ninja/v3/">https://obs.ninja/v3/</a> if you are having new issues.
