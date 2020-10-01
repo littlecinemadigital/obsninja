@@ -3,6 +3,8 @@
 html {
 	border:0;
 	margin:0;
+	outline:0;
+	
 }
 
 video {
@@ -28,8 +30,18 @@ body {
 	flex-flow: column;
 	border:0;
 	margin:0;
-	
+	outline:0;
 }
+
+button.glyphicon-button:focus,
+button.glyphicon-button:active:focus,
+button.glyphicon-button.active:focus,
+button.glyphicon-button.focus,
+button.glyphicon-button:active.focus,
+button.glyphicon-button.active.focus {
+  outline: none !important;
+}
+
 button{
 	padding:10px;
 	font-size: 20px;
@@ -71,25 +83,60 @@ input[type='checkbox'] {
 input[type='checkbox']:checked {
     background: #1A1;
 }
+#audioOutput{
+	font-size: calc(16px + 0.3vw);
+	max-width:590px
+}
+	
+@media only screen and (max-width: 1030px) {
+	body{
+		zoom: 0.9; 
+		-moz-transform: scale(0.9); 
+		-moz-transform-origin: 0 0;
+	}
+}
+
+@media only screen and (max-width: 940px) {
+	body{
+		zoom: 0.64; 
+		-moz-transform: scale(0.64); 
+		-moz-transform-origin: 0 0;
+		
+	}
+	#audioOutput{
+		font-size: calc(14px + 1.4vw);
+		max-width:486px
+	}
+}
 </style></head>
 <body >
 
 <div id="header" style="-webkit-app-region: drag;color:white;font-size:2em">OBS.Ninja</div>
-<div class="formcss"   >
+<div class="formcss" >
+
 	<input type="checkbox" class="check" id="prefervp9" name="prefervp9" value="false" onclick="modURL(this);">
 	<label for="prefervp9">Force VP9 Codec</label>
+	
 	<input type="checkbox" class="check" id="showcursor" name="showcursor" value="false" onclick="modURL(this);">
 	<label for="showcursor">Show Mouse Cursor</label>
+	
 	<input type="checkbox" class="check"  id="highbitrate" name="highbitrate" value="false" onclick="modURL(this);">
 	<label for="highbitrate">High Video Bitrate</label>
+	
 	<input type="checkbox" class="check" id="stereo" name="stereo" value="false" onclick="modURL(this);">
-	<label for="stereo">Pro Audio Mode</label><br><br><br>
-	<div class="formcss">
-    <input type="text" id="changeText" class="inputfield" value="http://obs.ninja/?view=" onchange="modURL"   onkeyup="enterPressed(event, gohere);" />
-	<button  onclick="gohere();" id="gobutton">GO</button>
-	<br><br>
-	<label for="audioOutput">Audio output destination: </label><select id="audioOutput" style="max-width:400px"></select>
-	</div>
+	<label for="stereo">Pro Audio Mode</label>
+	
+	<input type="checkbox" class="check" id="buffer" name="buffer" value="false" onclick="modURL(this);">
+	<label for="buffer">Lip-sync Fix</label>
+	
+	<br><br><br>
+	<div class="formcss"><center>
+		<input type="text" id="changeText" class="inputfield" value="http://obs.ninja/?view=" onchange="modURL"   onkeyup="enterPressed(event, gohere);" />
+		<button  onclick="gohere();" id="gobutton">GO</button>
+		<br><br>
+		<label for="audioOutput">Audio output destination: </label><select id="audioOutput"></select>
+		
+	</center></div>
 </div>
 
 
@@ -116,12 +163,14 @@ function updateOutputTarget(e){
 	document.getElementById('changeText').value = url;
 }
 
-function getPermssions(e){
+function getPermssions(e=null){
 	if (listed==true){
 		return;
 	} 
-	e.currentTarget.blur();
-	navigator.mediaDevices.getUserMedia({audio: true,video: false}).then(function(stream){
+	if (e!==null){
+		e.currentTarget.blur();
+	}
+	navigator.mediaDevices.getUserMedia({audio: true,video: false}).then((stream)=>{
 		navigator.mediaDevices.enumerateDevices().then(gotDevices).catch(console.error); // list all devices
 		stream.getTracks().forEach(track => {
 		    track.stop();
@@ -176,6 +225,10 @@ var isMobile = false;
 if( /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)){ // does not detect iPad Pros.
 	isMobile=true; // if iOS, default to H264?  meh.  let's not.
 }
+// Windows can show the cursor, since it captures in a different way.
+if (navigator.platform.indexOf("Win") != -1){
+	document.getElementById("showcursor").checked=true;
+}
 
 function updateURLParameter(url, param, paramVal){
     var TheAnchor = null;
@@ -207,10 +260,13 @@ function updateURLParameter(url, param, paramVal){
         if(TheParams){baseURL = TheParams;}
     }
 
-	if (paramVal==false){
+	if (paramVal===false){
 		temp="";
 		if(TheAnchor){temp += "#" + TheAnchor;}
 		var rows_txt = temp
+	} else if  (paramVal===""){
+		if(TheAnchor){paramVal += "#" + TheAnchor;}
+		var rows_txt = temp + "" + param;
 	} else {
 		if(TheAnchor){paramVal += "#" + TheAnchor;}
 		var rows_txt = temp + "" + param + "=" + paramVal;
@@ -230,7 +286,7 @@ function modURL(ele=false){
 	console.log(url);
 	if ((url.split("view").length>0) || (url.split("room").length>0)){
 			if (!document.getElementById("showcursor").checked){
-				url=updateURLParameter(url, "nocursor", "1");
+				url=updateURLParameter(url, "nocursor", "");
 			} else {
 				url=updateURLParameter(url, "nocursor", false);
 			}
@@ -254,10 +310,18 @@ function modURL(ele=false){
 			  
 			  if (ele.id =="stereo"){
 				if (document.getElementById("stereo").checked){
-					url=updateURLParameter(url, "stereo", "1");
+					url=updateURLParameter(url, "stereo", "");
 					alert('Audio bitrate increased to 256kbps.\n\nPlease note: the Video Publisher must also have the stereo flag enabled for stereo to work.');
 				} else {
 					url=updateURLParameter(url, "stereo", false);
+				}
+			  }
+			  
+			  if (ele.id =="buffer"){
+				if (document.getElementById("buffer").checked){
+					url=updateURLParameter(url, "buffer", "");
+				} else {
+					url=updateURLParameter(url, "buffer", false);
 				}
 			  }
 		}
@@ -268,9 +332,10 @@ function modURL(ele=false){
 	return url;
 }
 function gohere(){
-		  var url = modURL(true);
-          window.location = url;
-    };
+	var url = modURL(true);
+	window.location = url;
+};
+getPermssions();
 </script>
 </body>
 </html>
